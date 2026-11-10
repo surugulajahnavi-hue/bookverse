@@ -1,5 +1,5 @@
 const config = window.BOOKVERSE_CONFIG || {};
-const apiBaseUrl = (config.apiBaseUrl || "http://127.0.0.1:8000/api").replace(/\/$/, "");
+const apiBaseUrl = (config.apiBaseUrl || "https://bookverse-2yw0.onrender.com/api").replace(/\/$/, "");
 const tokenKey = "bookverse-access-token";
 const requestedPage = document.body.dataset.page || "home";
 const protectedPages = ["home", "books", "search", "cart", "checkout"];

@@ -30,7 +30,7 @@ online book store/
 
 ## Frontend and backend communication
 
-The browser sends JSON requests to `apiBaseUrl` in `Frontend/config.js` (local default `http://127.0.0.1:8000/api`). Successful login/signup returns a bearer token. The frontend keeps the token in browser local storage and sends it as `Authorization: Bearer ...` to protected routes. The API hashes passwords and stores users, carts, books, and orders in MongoDB. Book prices and order totals are calculated by the API.
+The browser sends JSON requests to `apiBaseUrl` in `Frontend/config.js`. It selects `http://127.0.0.1:8000/api` when the frontend is hosted on localhost/127.0.0.1 and `https://bookverse-2yw0.onrender.com/api` otherwise. Successful login/signup returns a bearer token. The frontend keeps the token in browser local storage and sends it as `Authorization: Bearer ...` to protected routes. The API hashes passwords and stores users, carts, books, and orders in MongoDB. Book prices and order totals are calculated by the API.
 
 ## Start locally on Windows PowerShell
 
@@ -80,7 +80,7 @@ py -m http.server 8765 --directory Frontend
 
 Open `http://127.0.0.1:8765`. Keep both terminal windows open while testing. Don't open HTML via `file://`; the browser must load it over HTTP for API requests and CORS.
 
-Local development demo credentials are set in `Backend/.env` and mirrored in `Frontend/config.js` for convenience. They are for local testing only. Remove `demoLogin` from `Frontend/config.js` and do not set demo-user environment variables in production.
+Local development demo credentials can be set in `Backend/.env`. Do not put demo credentials in `Frontend/config.js`; anything in frontend configuration is public. Do not set demo-user environment variables in production.
 
 ## API endpoints
 
@@ -116,7 +116,7 @@ Deploy the backend and frontend as separate services.
   - `MONGODB_DB=bookverse`
   - `JWT_SECRET` (unique random secret, at least 32 characters)
   - `JWT_EXPIRE_MINUTES=60`
-  - `FRONTEND_ORIGINS=https://<your-frontend-domain>`
+  - `FRONTEND_ORIGINS=https://<your-frontend-domain>` (comma-separated if multiple domains)
 - Do not configure `DEMO_USER_EMAIL` or `DEMO_USER_PASSWORD` in production.
 - Configure Atlas Network Access so the backend service can connect.
 
@@ -126,8 +126,9 @@ Deploy the backend and frontend as separate services.
 - Build command: none
 - Publish directory: `.`
 - Set `Frontend/config.js` `apiBaseUrl` to `https://<your-backend-service>.onrender.com/api`.
-- Remove `demoLogin` from `Frontend/config.js` before deployment.
 - Set backend `FRONTEND_ORIGINS` to the exact HTTPS frontend origin, then restart/redeploy the backend.
+
+The current deployment is configured for `https://bookverse-frontend-6c7yw291v-surugulajahnavi-hue.vercel.app`. Add that exact origin to Render's `FRONTEND_ORIGINS` environment variable too. CORS changes in source code take effect only after the backend service is redeployed.
 
 Frontend config is public in the browser; it must never contain MongoDB credentials or the JWT signing secret.
 

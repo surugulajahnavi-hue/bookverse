@@ -188,6 +188,9 @@ frontend_origins = [
     ).split(",")
     if origin.strip()
 ]
+deployed_frontend_origin = "https://bookverse-frontend-6c7yw291v-surugulajahnavi-hue.vercel.app"
+if deployed_frontend_origin not in frontend_origins:
+    frontend_origins.append(deployed_frontend_origin)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=frontend_origins,
