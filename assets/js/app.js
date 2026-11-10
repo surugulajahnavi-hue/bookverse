@@ -9,7 +9,31 @@ const books = [
   { id: "fourth-wing", title: "Fourth Wing", author: "Rebecca Yarros", category: "Fantasy", price: 22.50, isbn: "9781649374042", badge: "Trending", color: "#d7c9bd" }
 ];
 
-const page = document.body.dataset.page || "home";
+const requestedPage = document.body.dataset.page || "home";
+const demoAccount = { name: "BookVerse Reader", email: "reader@bookverse.com", password: "ReadBooks123" };
+const sessionKey = "bookverse-session";
+const usersKey = "bookverse-users";
+
+if (requestedPage === "logout") localStorage.removeItem(sessionKey);
+
+function getSession() {
+  try {
+    const session = JSON.parse(localStorage.getItem(sessionKey) || "null");
+    return session && typeof session.name === "string" && typeof session.email === "string" ? session : null;
+  } catch {
+    return null;
+  }
+}
+
+const currentUser = getSession();
+const protectedPages = ["home", "books", "search", "cart", "checkout"];
+const page = !currentUser && protectedPages.includes(requestedPage) ? "login" : requestedPage;
+
+if (!currentUser && protectedPages.includes(requestedPage)) {
+  const destination = `${location.pathname.split("/").pop()}${location.search}`;
+  location.replace(`login.html?next=${encodeURIComponent(destination)}`);
+}
+
 const app = document.querySelector("#app");
 const money = (amount) => `$${amount.toFixed(2)}`;
 const cover = (book, size = "L") => `https://covers.openlibrary.org/b/isbn/${book.isbn}-${size}.jpg`;
@@ -36,12 +60,15 @@ function updateCartCount() {
 function header() {
   const nav = [["Home", "index.html", "home"], ["Books", "books.html", "books"], ["Search", "search.html", "search"]];
   const query = new URLSearchParams(location.search).get("q") || "";
+  const accountLink = currentUser
+    ? `<a class="account-link" href="logout.html">Log out</a>`
+    : `<a class="account-link" href="login.html">Log in</a><a class="account-link" href="signup.html">Sign up</a>`;
   return `<div class="announcement">A little something for your next chapter — free shipping over $40</div>
     <header class="site-header"><div class="header-inner">
       <a class="brand" href="index.html" aria-label="BookVerse home"><span class="brand-mark">B</span>BookVerse</a>
       <nav class="main-nav" aria-label="Main navigation">${nav.map(([label, href, key]) => `<a href="${href}" class="${page === key ? "active" : ""}">${label}</a>`).join("")}</nav>
       <form class="header-search" action="search.html" role="search"><input type="search" name="q" placeholder="Find your next read..." value="${escapeHtml(query)}" aria-label="Search books"><button aria-label="Submit search">⌕</button></form>
-      <div class="header-actions"><a class="icon-link mobile-search" href="search.html" aria-label="Search">⌕</a><a class="icon-link" href="login.html" aria-label="Log in">♙</a><a class="icon-link" href="cart.html" aria-label="Shopping bag">♧<span class="cart-count" data-cart-count>0</span></a></div>
+      <div class="header-actions"><a class="icon-link mobile-search" href="search.html" aria-label="Search">⌕</a>${accountLink}${currentUser ? `<a class="icon-link" href="cart.html" aria-label="Shopping bag">♧<span class="cart-count" data-cart-count>0</span></a>` : ""}</div>
     </div></header>`;
 }
 
@@ -49,7 +76,7 @@ function footer() {
   return `<footer class="site-footer"><div class="container"><div class="footer-grid">
     <div class="footer-brand"><a class="brand" href="index.html"><span class="brand-mark">B</span>BookVerse</a><p>A cozy corner of the internet for curious minds and well-loved stories.</p></div>
     <div class="footer-column"><h3>Explore</h3><a href="books.html">All books</a><a href="search.html">Find a book</a><a href="books.html?category=Fiction">Fiction</a></div>
-    <div class="footer-column"><h3>Your account</h3><a href="login.html">Log in</a><a href="signup.html">Create account</a><a href="cart.html">Shopping bag</a></div>
+    <div class="footer-column"><h3>Your account</h3>${currentUser ? `<a href="logout.html">Log out</a><a href="cart.html">Shopping bag</a>` : `<a href="login.html">Log in</a><a href="signup.html">Create account</a>`}</div>
     <div class="footer-column"><h3>Here to help</h3><a href="checkout.html">Checkout</a><a href="mailto:hello@bookverse.example">Contact us</a><a href="index.html#newsletter">Bookish notes</a></div>
   </div><div class="footer-bottom">© 2025 BookVerse. Made for the love of a good story.</div></div></footer>`;
 }
@@ -85,13 +112,16 @@ function catalogPage(isSearch = false) {
 }
 
 function authPage(isSignup) {
+  const next = new URLSearchParams(location.search).get("next");
+  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
+  const demoCredentials = isSignup ? "" : `<div class="demo-credentials"><strong>Demo login details</strong><span>Email: <code>${demoAccount.email}</code></span><span>Password: <code>${demoAccount.password}</code></span><small>Demo only — do not use a real password.</small></div>`;
   return `<main class="auth-layout"><section class="auth-aside"><div><p class="eyebrow">A world of stories awaits</p><h1>${isSignup ? "Make room for more stories." : "Welcome back, book lover."}</h1><p>${isSignup ? "Create your little corner of BookVerse. Keep your reading list close and discover something wonderful." : "Your next favorite read is just around the corner. Pick up where your bookish journey left off."}</p><p class="aside-note">“A book is a dream that you hold in your hands.”</p></div></section>
-    <section class="auth-panel"><form class="auth-form" data-auth="${isSignup ? "signup" : "login"}"><h2>${isSignup ? "Join BookVerse" : "Log in"}</h2><p class="form-intro">${isSignup ? "It only takes a moment to get started." : "Good to have you back."}</p>
+    <section class="auth-panel"><form class="auth-form" data-auth="${isSignup ? "signup" : "login"}"><h2>${isSignup ? "Join BookVerse" : "Log in"}</h2><p class="form-intro">${isSignup ? "It only takes a moment to get started." : "Good to have you back."}</p>${demoCredentials}
       ${isSignup ? `<div class="form-field"><label for="name">Your name</label><input id="name" name="name" autocomplete="name" required placeholder="Jamie Reader"></div>` : ""}
-      <div class="form-field"><label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required placeholder="you@example.com"></div>
-      <div class="form-field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="${isSignup ? "new-password" : "current-password"}" minlength="6" required placeholder="At least 6 characters"></div>
+      <div class="form-field"><label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required placeholder="you@example.com" ${isSignup ? "" : `value="${demoAccount.email}"`}></div>
+      <div class="form-field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="${isSignup ? "new-password" : "current-password"}" minlength="6" required placeholder="At least 6 characters" ${isSignup ? "" : `value="${demoAccount.password}"`}></div>
       <button class="button">${isSignup ? "Create my account" : "Log in to my account"} <span>→</span></button><p class="form-message" aria-live="polite"></p>
-      <p class="auth-switch">${isSignup ? "Already have an account?" : "New to BookVerse?"} <a class="text-link" href="${isSignup ? "login.html" : "signup.html"}">${isSignup ? "Log in" : "Create an account"}</a></p>
+      <p class="auth-switch">${isSignup ? "Already have an account?" : "New to BookVerse?"} <a class="text-link" href="${isSignup ? `login.html${nextQuery}` : `signup.html${nextQuery}`}">${isSignup ? "Log in" : "Create an account"}</a></p>
     </form></section></main>`;
 }
 
@@ -103,7 +133,11 @@ function checkoutPage() {
   return `<main class="page-main"><div class="container"><div class="page-heading"><p class="eyebrow">One last step</p><h1>Checkout</h1></div><div id="checkout-content"></div></div></main>`;
 }
 
-app.innerHTML = `${header()}${page === "home" ? homePage() : page === "books" ? catalogPage() : page === "search" ? catalogPage(true) : page === "login" ? authPage(false) : page === "signup" ? authPage(true) : page === "cart" ? cartPage() : checkoutPage()}${footer()}`;
+function logoutPage() {
+  return `<main class="page-main"><div class="container"><section class="success-panel"><div class="success-icon">✓</div><p class="eyebrow">Until your next chapter</p><h1>You've logged out</h1><p>Your demo session has ended. Sign in again whenever you're ready to browse.</p><a class="button" href="login.html">Back to login →</a></section></div></main>`;
+}
+
+app.innerHTML = `${header()}${page === "home" ? homePage() : page === "books" ? catalogPage() : page === "search" ? catalogPage(true) : page === "login" ? authPage(false) : page === "signup" ? authPage(true) : page === "logout" ? logoutPage() : page === "cart" ? cartPage() : checkoutPage()}${footer()}`;
 updateCartCount();
 
 function formatCart(cart) {
@@ -222,9 +256,53 @@ renderCheckout();
 document.querySelectorAll("[data-auth]").forEach((form) => form.addEventListener("submit", (event) => {
   event.preventDefault();
   if (!form.reportValidity()) return;
-  form.querySelector(".form-message").textContent = form.dataset.auth === "signup"
-    ? "Your demo account is ready! Backend account creation can be connected here."
-    : "You're signed in for this demo. Connect your authentication service here.";
+  const formData = new FormData(form);
+  const email = String(formData.get("email")).trim().toLowerCase();
+  const password = String(formData.get("password"));
+  const message = form.querySelector(".form-message");
+
+  if (form.dataset.auth === "signup") {
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem(usersKey) || "[]");
+      if (!Array.isArray(users)) users = [];
+    } catch {
+      users = [];
+    }
+    if (users.some((user) => user.email === email) || email === demoAccount.email) {
+      message.textContent = "An account with this email already exists. Please log in.";
+      message.classList.add("error");
+      return;
+    }
+    const user = { name: String(formData.get("name")).trim(), email, password };
+    users.push(user);
+    localStorage.setItem(usersKey, JSON.stringify(users));
+    localStorage.setItem(sessionKey, JSON.stringify({ name: user.name, email: user.email }));
+  } else {
+    let users = [];
+    try {
+      users = JSON.parse(localStorage.getItem(usersKey) || "[]");
+      if (!Array.isArray(users)) users = [];
+    } catch {
+      users = [];
+    }
+    const validDemoLogin = email === demoAccount.email && password === demoAccount.password;
+    const user = validDemoLogin ? demoAccount : users.find((account) => account.email === email && account.password === password);
+    if (!user) {
+      message.textContent = "Email or password is incorrect. Check the demo details above or sign up.";
+      message.classList.add("error");
+      return;
+    }
+    localStorage.setItem(sessionKey, JSON.stringify({ name: user.name, email: user.email }));
+  }
+
+  const next = new URLSearchParams(location.search).get("next");
+  const destination = next ? new URL(next, location.href) : null;
+  const allowedDestinations = ["index.html", "books.html", "search.html", "cart.html", "checkout.html"];
+  const destinationName = destination?.pathname.split("/").pop();
+  location.replace(destination && destination.origin === location.origin && allowedDestinations.includes(destinationName)
+    ? `${destinationName}${destination.search}`
+    : "index.html");
 }));
 
 document.querySelectorAll("[data-newsletter]").forEach((form) => form.addEventListener("submit", (event) => {
