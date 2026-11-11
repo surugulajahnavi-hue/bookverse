@@ -128,7 +128,7 @@ Deploy the backend and frontend as separate services.
 - Set `Frontend/config.js` `apiBaseUrl` to `https://<your-backend-service>.onrender.com/api`.
 - Set backend `FRONTEND_ORIGINS` to the exact HTTPS frontend origin, then restart/redeploy the backend.
 
-The current deployment is configured for `https://bookverse-frontend-6c7yw291v-surugulajahnavi-hue.vercel.app`. Add that exact origin to Render's `FRONTEND_ORIGINS` environment variable too. CORS changes in source code take effect only after the backend service is redeployed.
+The current frontend deployment is `https://bookverse-frontend-alpha.vercel.app`. Add that exact origin to Render's `FRONTEND_ORIGINS` environment variable (alongside any other active frontend origins). CORS changes in source code take effect only after the backend service is redeployed.
 
 Frontend config is public in the browser; it must never contain MongoDB credentials or the JWT signing secret.
 
