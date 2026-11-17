@@ -9,6 +9,7 @@ online book store/
 │   ├── login.html
 │   ├── signup.html
 │   ├── books.html
+│   ├── admin.html               # Admin/store-manager operations dashboard
 │   ├── search.html
 │   ├── cart.html
 │   ├── checkout.html

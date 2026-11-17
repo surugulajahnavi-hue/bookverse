@@ -3,7 +3,8 @@ const apiBaseUrl = (config.apiBaseUrl || "https://bookverse-2yw0.onrender.com/ap
 const tokenKey = "bookverse-access-token";
 const demoSubscriptionKey = "bookverse-demo-subscription";
 const requestedPage = document.body.dataset.page || "home";
-const protectedPages = ["home", "books", "search", "cart", "checkout"];
+const protectedPages = ["home", "books", "search", "cart", "checkout", "admin"];
+const catalogPages = ["home", "books", "search"];
 const app = document.querySelector("#app");
 const money = (amount) => `$${Number(amount).toFixed(2)}`;
 const cover = (book, size = "L") => `https://covers.openlibrary.org/b/isbn/${book.isbn}-${size}.jpg`;
@@ -70,6 +71,11 @@ const extendedPages = {
 let page = requestedPage;
 let currentUser = null;
 let books = [];
+let currentSettings = {
+  announcement: "A little something for your next chapter — free shipping over $40",
+  free_shipping_threshold: 40,
+  minimum_stock_level: 5,
+};
 let cart = { items: [], count: 0, subtotal: 0, shipping: 0, total: 0 };
 
 function escapeHtml(value) {
@@ -100,11 +106,12 @@ async function api(path, options = {}) {
 
 function header() {
   const nav = [["Home", "index.html", "home"], ["Books", "books.html", "books"], ["Search", "search.html", "search"], ["Subscribe", "subscription.html", "subscription"]];
+  if (currentUser && ["admin", "store_manager"].includes(currentUser.role)) nav.push(["Admin", "admin.html", "admin"]);
   const query = new URLSearchParams(location.search).get("q") || "";
   const accountLinks = currentUser
     ? `<span class="account-link">Hi, ${escapeHtml(currentUser.name.split(" ")[0])}</span><a class="account-link" href="logout.html">Log out</a><a class="icon-link" href="cart.html" aria-label="Shopping bag">♧<span class="cart-count" data-cart-count>${cart.count}</span></a>`
     : `<a class="account-link" href="login.html">Log in</a><a class="account-link" href="signup.html">Sign up</a>`;
-  return `<div class="announcement">A little something for your next chapter — free shipping over $40</div>
+  return `<div class="announcement">${escapeHtml(currentSettings.announcement)}</div>
     <header class="site-header"><div class="header-inner">
       <a class="brand" href="index.html" aria-label="BookVerse home"><span class="brand-mark">B</span>BookVerse</a>
       <nav class="main-nav" aria-label="Main navigation">${nav.map(([label, href, key]) => `<a href="${href}" class="${page === key ? "active" : ""}">${label}</a>`).join("")}</nav>
@@ -156,7 +163,7 @@ function authPage(isSignup) {
   return `<main class="auth-layout"><section class="auth-aside"><div><p class="eyebrow">A world of stories awaits</p><h1>${isSignup ? "Make room for more stories." : "Welcome back, book lover."}</h1><p>${isSignup ? "Create your little corner of BookVerse. Keep your reading list close and discover something wonderful." : "Your next favorite read is just around the corner. Pick up where your bookish journey left off."}</p><p class="aside-note">“A book is a dream that you hold in your hands.”</p></div></section>
     <section class="auth-panel"><form class="auth-form" data-auth="${isSignup ? "signup" : "login"}"><h2>${isSignup ? "Join BookVerse" : "Log in"}</h2><p class="form-intro">${isSignup ? "It only takes a moment to get started." : "Good to have you back."}</p>${demo}
       ${isSignup ? `<div class="form-field"><label for="name">Your name</label><input id="name" name="name" autocomplete="name" required minlength="2" maxlength="80" placeholder="Jamie Reader"></div>` : ""}
-      <div class="form-field"><label for="email">Email address</label><input id="email" type="email" name="email" autocomplete="email" required placeholder="you@example.com" ${isSignup || !config.demoLogin ? "" : `value="${escapeHtml(config.demoLogin.email)}"`}></div>
+      <div class="form-field"><label for="email">${isSignup ? "Email address" : "Email or username"}</label><input id="email" type="${isSignup ? "email" : "text"}" name="email" autocomplete="${isSignup ? "email" : "username"}" required placeholder="${isSignup ? "you@example.com" : "you@example.com or username"}" ${isSignup || !config.demoLogin ? "" : `value="${escapeHtml(config.demoLogin.email)}"`}></div>
       <div class="form-field"><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="${isSignup ? "new-password" : "current-password"}" minlength="${isSignup ? "8" : "1"}" maxlength="128" required placeholder="${isSignup ? "At least 8 characters" : "Your password"}" ${isSignup || !config.demoLogin ? "" : `value="${escapeHtml(config.demoLogin.password)}"`}></div>
       <button class="button">${isSignup ? "Create my account" : "Log in to my account"} <span>→</span></button><p class="form-message" aria-live="polite"></p>
       <p class="auth-switch">${isSignup ? "Already have an account?" : "New to BookVerse?"} <a class="text-link" href="${isSignup ? `login.html${nextQuery}` : `signup.html${nextQuery}`}">${isSignup ? "Log in" : "Create an account"}</a></p>
@@ -187,6 +194,14 @@ function subscriptionPage() {
   </section></div></main>`;
 }
 
+function adminPage() {
+  const isAdmin = currentUser?.role === "admin";
+  const tabs = [["low-stock", "Low stock"], ...(isAdmin ? [["books", "Books"], ["users", "Users"], ["orders", "Orders"], ["settings", "Website settings"]] : [])];
+  return `<main class="page-main"><div class="container"><div class="page-heading"><p class="eyebrow">${isAdmin ? "Administrator" : "Store operations"}</p><h1>Admin dashboard</h1><p class="admin-account-summary">Signed in as ${escapeHtml(currentUser?.username || currentUser?.name || "")} · ${escapeHtml(currentUser?.email || "")}</p></div>
+    <div class="admin-tabs" role="tablist" aria-label="Admin dashboard sections">${tabs.map(([key, label], index) => `<button class="admin-tab${index === 0 ? " active" : ""}" type="button" role="tab" aria-selected="${index === 0}" data-admin-tab="${key}">${label}</button>`).join("")}</div>
+    <div id="admin-dashboard-content"><p class="admin-dashboard-loading">Loading dashboard…</p></div></div></main>`;
+}
+
 function readerModalMarkup() {
   return `<div class="modal fade book-reader-modal" id="book-reader-modal" tabindex="-1" aria-labelledby="reader-book-title" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
@@ -209,6 +224,7 @@ function renderApp() {
     : page === "books" ? catalogPage()
       : page === "search" ? catalogPage(true)
         : page === "subscription" ? subscriptionPage()
+          : page === "admin" ? adminPage()
         : page === "login" ? authPage(false)
           : page === "signup" ? authPage(true)
             : page === "logout" ? logoutPage()
@@ -231,6 +247,17 @@ function renderApp() {
   }
   if (page === "cart") renderCart();
   if (page === "checkout") renderCheckout();
+  if (page === "admin") {
+    document.querySelectorAll("[data-admin-tab]").forEach((button) => button.addEventListener("click", () => {
+      document.querySelectorAll("[data-admin-tab]").forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", String(active));
+      });
+      renderAdminDashboard();
+    }));
+    renderAdminDashboard();
+  }
   bindForms();
 }
 
@@ -246,6 +273,153 @@ function renderCatalog() {
   if (sort === "price-high") matches = [...matches].sort((a, b) => b.price - a.price);
   document.querySelector("#results-count").textContent = `${matches.length} ${matches.length === 1 ? "book" : "books"}${query ? ` for “${query}”` : ""}`;
   grid.innerHTML = matches.length ? matches.map(bookCard).join("") : `<div class="empty-state" style="grid-column:1/-1"><h2>No books found just yet</h2><p>Try another title or category — the right story is out there.</p><a class="button small" href="books.html">Browse all books</a></div>`;
+}
+
+function renderAdminDashboard() {
+  const target = document.querySelector("#admin-dashboard-content");
+  if (!target) return;
+  if (!currentUser || !["admin", "store_manager"].includes(currentUser.role)) {
+    target.innerHTML = `<section class="empty-state"><h2>Admin access required</h2><p>This inventory dashboard is available to configured admins and store managers only.</p><a class="button small" href="books.html">Return to the bookshelf</a></section>`;
+    return;
+  }
+  const activeTab = document.querySelector("[data-admin-tab].active")?.dataset.adminTab || "low-stock";
+  target.innerHTML = `<p class="admin-dashboard-loading">Loading ${escapeHtml(activeTab.replace("-", " "))}…</p>`;
+  const requests = {
+    "low-stock": ["/admin/low-stock"],
+    books: ["/admin/books"],
+    users: ["/admin/users"],
+    orders: ["/admin/orders"],
+    settings: ["/site-settings"],
+  };
+  Promise.all(requests[activeTab].map((path) => api(path)))
+    .then(([data]) => {
+      if (activeTab === "books") {
+        target.innerHTML = renderAdminBooks(data);
+        bindAdminForms(target);
+        return;
+      }
+      if (activeTab === "users") {
+        target.innerHTML = renderAdminUsers(data);
+        bindAdminForms(target);
+        return;
+      }
+      if (activeTab === "orders") {
+        target.innerHTML = renderAdminOrders(data);
+        bindAdminForms(target);
+        return;
+      }
+      if (activeTab === "settings") {
+        target.innerHTML = renderAdminSettings(data);
+        bindAdminForms(target);
+        return;
+      }
+      if (!data.length) {
+        target.innerHTML = `<section class="empty-state"><h2>All stocked up</h2><p>No products are currently below their minimum stock levels.</p><a class="button small" href="books.html">Browse the bookshelf</a></section>`;
+        return;
+      }
+      const products = data;
+      target.innerHTML = `<section class="inventory-summary"><strong>${products.length}</strong><span>${products.length === 1 ? "product needs" : "products need"} restocking</span></section>
+        <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>Product</th><th>Available</th><th>Minimum</th><th>Last alert</th><th>Restock</th></tr></thead>
+        <tbody>${products.map((product) => `<tr><th scope="row">${escapeHtml(product.title)}<small>${product.notification_status ? `Notification ${escapeHtml(product.notification_status)}` : "No threshold-crossing alert recorded"}</small></th>
+          <td><span class="stock-warning">${product.stock}</span></td><td>${product.minimum_stock_level}</td>
+          <td>${product.last_alert_at ? escapeHtml(new Date(product.last_alert_at).toLocaleString()) : "—"}</td>
+          <td><form class="restock-form" data-restock="${escapeHtml(product.id)}"><label class="visually-hidden" for="stock-${escapeHtml(product.id)}">New stock quantity for ${escapeHtml(product.title)}</label><input id="stock-${escapeHtml(product.id)}" name="stock" type="number" min="0" max="1000000" step="1" value="${product.stock}" required><button class="button small">Update</button></form></td></tr>`).join("")}</tbody></table></div>`;
+      bindAdminForms(target);
+    })
+    .catch((error) => {
+      const message = error.status === 403
+        ? "Admin or store manager access is required."
+        : error.message;
+      target.innerHTML = `<section class="empty-state"><h2>Inventory could not be loaded</h2><p>${escapeHtml(message)}</p><button class="button small" data-admin-retry>Try again</button></section>`;
+      target.querySelector("[data-admin-retry]").addEventListener("click", renderAdminDashboard);
+    });
+}
+
+function renderAdminBooks(items) {
+  const fields = (book = {}) => `<label>Title<input name="title" maxlength="200" value="${escapeHtml(book.title || "")}" required></label><label>Author<input name="author" maxlength="120" value="${escapeHtml(book.author || "")}" required></label><label>Category<input name="category" maxlength="60" value="${escapeHtml(book.category || "")}" required></label><label>Price<input name="price" type="number" min="0.01" step="0.01" value="${book.price ?? ""}" required></label><label>ISBN<input name="isbn" maxlength="32" value="${escapeHtml(book.isbn || "")}" required></label><label>Badge<input name="badge" maxlength="40" value="${escapeHtml(book.badge || "")}"></label><label>Cover color<input name="color" type="color" value="${escapeHtml(book.color || "#e8e1d6")}"></label><label>Stock<input name="stock" type="number" min="0" max="1000000" value="${book.stock ?? ""}" required></label><label>Minimum stock<input name="minimum_stock_level" type="number" min="0" max="1000000" value="${book.minimum_stock_level ?? currentSettings.minimum_stock_level}" required></label>`;
+  return `<div class="admin-section-heading"><h2>Manage books</h2><span>${items.length} products</span></div>
+    <details class="admin-create-book"><summary>Add a book</summary><form class="admin-form-grid" data-admin-create-book>${fields()}<button class="button">Create book</button></form></details>
+    <div class="admin-record-list">${items.map((book) => `<details class="admin-record"><summary>${escapeHtml(book.title)} <span>${book.stock} in stock · ${money(book.price)}</span></summary>
+      <form class="admin-form-grid" data-admin-update-book="${escapeHtml(book.id)}">${fields(book)}<button class="button small">Save changes</button><button class="button small danger-button" type="button" data-delete-book="${escapeHtml(book.id)}">Delete book</button></form></details>`).join("")}</div>`;
+}
+
+function renderAdminUsers(users) {
+  return `<div class="admin-section-heading"><h2>Manage users</h2><span>${users.length} accounts</span></div><div class="admin-record-list">${users.map((user) => `<form class="admin-user-row" data-admin-user="${escapeHtml(user.email)}">
+    <div><strong>${escapeHtml(user.username || user.name)}</strong><small>${escapeHtml(user.email)} · joined ${user.created_at ? escapeHtml(new Date(user.created_at).toLocaleDateString()) : "date unavailable"}</small></div>
+    <label>Role<select name="role">${["customer", "store_manager", "admin"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${role.replace("_", " ")}</option>`).join("")}</select></label>
+    <label class="admin-active-toggle"><input type="checkbox" name="active" ${user.active ? "checked" : ""}> Active</label><button class="button small">Save</button>
+  </form>`).join("")}</div>`;
+}
+
+function renderAdminOrders(orders) {
+  const statuses = ["placed", "processing", "shipped", "fulfilled", "cancelled"];
+  return `<div class="admin-section-heading"><h2>Manage orders</h2><span>${orders.length} orders</span></div><div class="admin-record-list">${orders.length ? orders.map((order) => `<form class="admin-order-row" data-admin-order="${escapeHtml(order.order_id)}">
+    <div><strong>Order ${escapeHtml(order.order_id.slice(-8))}</strong><small>${escapeHtml(order.customer.name)} · ${escapeHtml(order.customer.email)} · ${order.items.reduce((count, item) => count + item.quantity, 0)} items · ${money(order.total)} · ${order.created_at ? escapeHtml(new Date(order.created_at).toLocaleString()) : ""}</small></div>
+    <label>Status<select name="status">${statuses.map((status) => `<option value="${status}" ${order.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label><button class="button small">Update</button>
+  </form>`).join("") : `<p class="admin-dashboard-loading">No orders yet.</p>`}</div>`;
+}
+
+function renderAdminSettings(settings) {
+  return `<section class="admin-settings"><h2>Website settings</h2><p>These settings affect the storefront banner and checkout shipping calculation.</p>
+    <form class="admin-form-grid" data-admin-settings><label class="admin-field-wide">Announcement banner<input name="announcement" maxlength="180" value="${escapeHtml(settings.announcement)}" required></label>
+    <label>Free-shipping threshold<input name="free_shipping_threshold" type="number" min="0" step="0.01" value="${settings.free_shipping_threshold}" required></label>
+    <label>Default minimum stock level<input name="minimum_stock_level" type="number" min="0" max="1000000" value="${settings.minimum_stock_level}" required></label>
+    <button class="button">Save website settings</button></form></section>`;
+}
+
+function bindAdminForms(target) {
+  target.querySelectorAll("[data-restock]").forEach((form) => form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    await submitAdminAction(async () => api(`/admin/books/${encodeURIComponent(form.dataset.restock)}/stock`, {
+      method: "PUT",
+      body: JSON.stringify({ stock: Number(new FormData(form).get("stock")) }),
+    }), "Stock updated.", "low-stock");
+  }));
+  target.querySelectorAll("[data-admin-create-book], [data-admin-update-book], [data-admin-user], [data-admin-order], [data-admin-settings]").forEach((form) => form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!form.reportValidity()) return;
+    const values = Object.fromEntries(new FormData(form));
+    if (form.matches("[data-admin-user]")) values.active = form.elements.active.checked;
+    if (form.matches("[data-admin-create-book], [data-admin-update-book]")) {
+      for (const field of ["price", "stock", "minimum_stock_level"]) values[field] = Number(values[field]);
+      values.badge ||= "";
+    }
+    let request;
+    let refreshTab = document.querySelector("[data-admin-tab].active")?.dataset.adminTab || "low-stock";
+    if (form.matches("[data-admin-create-book]")) request = () => api("/admin/books", { method: "POST", body: JSON.stringify(values) });
+    else if (form.matches("[data-admin-update-book]")) request = () => api(`/admin/books/${encodeURIComponent(form.dataset.adminUpdateBook)}`, { method: "PUT", body: JSON.stringify(values) });
+    else if (form.matches("[data-admin-user]")) request = () => api(`/admin/users/${encodeURIComponent(form.dataset.adminUser)}`, { method: "PUT", body: JSON.stringify(values) });
+    else if (form.matches("[data-admin-order]")) request = () => api(`/admin/orders/${encodeURIComponent(form.dataset.adminOrder)}/status`, { method: "PUT", body: JSON.stringify({ status: values.status }) });
+    else if (form.matches("[data-admin-settings]")) {
+      values.free_shipping_threshold = Number(values.free_shipping_threshold);
+      values.minimum_stock_level = Number(values.minimum_stock_level);
+      request = () => api("/admin/site-settings", { method: "PUT", body: JSON.stringify(values) });
+      refreshTab = "settings";
+    }
+    await submitAdminAction(request, "Changes saved.", refreshTab);
+  }));
+  target.querySelectorAll("[data-delete-book]").forEach((button) => button.addEventListener("click", async () => {
+    if (!window.confirm("Delete this book from the catalogue?")) return;
+    await submitAdminAction(() => api(`/admin/books/${encodeURIComponent(button.dataset.deleteBook)}`, { method: "DELETE" }), "Book deleted.", "books");
+  }));
+}
+
+async function submitAdminAction(request, successMessage, tab) {
+  try {
+    const result = await request();
+    if (tab === "settings") currentSettings = result;
+    document.querySelectorAll(".announcement").forEach((banner) => { banner.textContent = currentSettings.announcement; });
+    showToast(successMessage);
+    document.querySelectorAll("[data-admin-tab]").forEach((button) => {
+      const active = button.dataset.adminTab === tab;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    renderAdminDashboard();
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 function openBookPreview(bookId, pageIndex = 0) {
@@ -329,7 +503,7 @@ function showMessage(form, message, isError = false) {
 
 function destinationAfterLogin() {
   const next = new URLSearchParams(location.search).get("next");
-  const allowed = ["index.html", "books.html", "search.html", "cart.html", "checkout.html"];
+  const allowed = ["index.html", "books.html", "search.html", "cart.html", "checkout.html", "admin.html"];
   if (!next) return "index.html";
   const url = new URL(next, location.href);
   const name = url.pathname.split("/").pop();
@@ -490,10 +664,13 @@ async function initialize() {
   }
   try {
     if (token) currentUser = await api("/auth/me");
-    if (protectedPages.includes(requestedPage)) {
-      books = await api("/books", { headers: { Accept: "application/json" } });
-      await refreshCart();
+    if (catalogPages.includes(requestedPage) || requestedPage === "admin") {
+      currentSettings = await api("/site-settings");
     }
+    if (catalogPages.includes(requestedPage)) {
+      books = await api("/books", { headers: { Accept: "application/json" } });
+    }
+    if (protectedPages.includes(requestedPage)) await refreshCart();
     page = requestedPage;
     renderApp();
   } catch (error) {
