@@ -346,7 +346,7 @@ function renderAdminBooks(items) {
 function renderAdminUsers(users) {
   return `<div class="admin-section-heading"><h2>Manage users</h2><span>${users.length} accounts</span></div><div class="admin-record-list">${users.map((user) => `<form class="admin-user-row" data-admin-user="${escapeHtml(user.email)}">
     <div><strong>${escapeHtml(user.username || user.name)}</strong><small>${escapeHtml(user.email)} · joined ${user.created_at ? escapeHtml(new Date(user.created_at).toLocaleDateString()) : "date unavailable"}</small></div>
-    <label>Role<select name="role">${["customer", "store_manager", "admin"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${role.replace("_", " ")}</option>`).join("")}</select></label>
+    <label>Role<select name="role">${["user", "store_manager", "admin"].map((role) => `<option value="${role}" ${user.role === role ? "selected" : ""}>${role.replace("_", " ")}</option>`).join("")}</select></label>
     <label class="admin-active-toggle"><input type="checkbox" name="active" ${user.active ? "checked" : ""}> Active</label><button class="button small">Save</button>
   </form>`).join("")}</div>`;
 }
@@ -504,10 +504,16 @@ function showMessage(form, message, isError = false) {
 function destinationAfterLogin() {
   const next = new URLSearchParams(location.search).get("next");
   const allowed = ["index.html", "books.html", "search.html", "cart.html", "checkout.html", "admin.html"];
-  if (!next) return "index.html";
-  const url = new URL(next, location.href);
-  const name = url.pathname.split("/").pop();
-  return url.origin === location.origin && allowed.includes(name) ? `${name}${url.search}` : "index.html";
+  if (next) {
+    const url = new URL(next, location.href);
+    const name = url.pathname.split("/").pop();
+    if (url.origin === location.origin && allowed.includes(name)) return `${name}${url.search}`;
+  }
+  return roleLandingPage(currentUser);
+}
+
+function roleLandingPage(user) {
+  return user && ["admin", "store_manager"].includes(user.role) ? "admin.html" : "index.html";
 }
 
 function bindForms() {
@@ -519,6 +525,7 @@ function bindForms() {
     try {
       const result = await api(endpoint, { method: "POST", body: JSON.stringify(values) });
       localStorage.setItem(tokenKey, result.access_token);
+      currentUser = result.user;
       location.replace(destinationAfterLogin());
     } catch (error) {
       showMessage(form, error.message, true);
@@ -664,6 +671,14 @@ async function initialize() {
   }
   try {
     if (token) currentUser = await api("/auth/me");
+    if (requestedPage === "login" && currentUser) {
+      location.replace(roleLandingPage(currentUser));
+      return;
+    }
+    if (requestedPage === "admin" && !["admin", "store_manager"].includes(currentUser?.role)) {
+      location.replace("index.html");
+      return;
+    }
     if (catalogPages.includes(requestedPage) || requestedPage === "admin") {
       currentSettings = await api("/site-settings");
     }

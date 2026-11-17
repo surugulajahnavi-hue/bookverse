@@ -59,7 +59,7 @@ class LoginRequest(BaseModel):
 class UserResponse(BaseModel):
     name: str
     email: EmailStr
-    role: str = "customer"
+    role: str = "user"
     username: str | None = None
 
 
@@ -107,7 +107,7 @@ class AdminBookInput(BaseModel):
 
 
 class AdminUserUpdate(BaseModel):
-    role: str = Field(pattern=r"^(customer|store_manager|admin)$")
+    role: str = Field(pattern=r"^(user|customer|store_manager|admin)$")
     active: bool
 
 
@@ -167,7 +167,12 @@ def public_user(user: dict[str, Any]) -> UserResponse:
     if bootstrap_admin_email:
         admins.add(bootstrap_admin_email)
     managers = configured_emails("STORE_MANAGER_EMAILS")
-    role = "admin" if email in admins else "store_manager" if email in managers else user.get("role", "customer")
+    saved_role = user.get("role")
+    if saved_role == "customer":
+        saved_role = "user"
+    role = saved_role if saved_role in {"user", "store_manager", "admin"} else (
+        "admin" if email in admins else "store_manager" if email in managers else "user"
+    )
     return UserResponse(name=user["name"], email=email, role=role, username=user.get("username"))
 
 
@@ -298,6 +303,31 @@ def seed_database(db: Any) -> None:
             {"$set": {"minimum_stock_level": book["minimum_stock_level"]}},
         )
 
+    users = collection(db, "users")
+    admin_emails = configured_emails("ADMIN_EMAILS")
+    bootstrap_admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
+    if bootstrap_admin_email:
+        admin_emails.add(bootstrap_admin_email)
+    manager_emails = configured_emails("STORE_MANAGER_EMAILS") - admin_emails
+    if admin_emails:
+        users.update_many(
+            {"role": {"$exists": False}, "email": {"$in": sorted(admin_emails)}},
+            {"$set": {"role": "admin", "active": True}},
+        )
+    if manager_emails:
+        users.update_many(
+            {"role": {"$exists": False}, "email": {"$in": sorted(manager_emails)}},
+            {"$set": {"role": "store_manager", "active": True}},
+        )
+    users.update_many(
+        {"role": {"$exists": False}},
+        {"$set": {"role": "user", "active": True}},
+    )
+    users.update_many(
+        {"role": "customer"},
+        {"$set": {"role": "user"}},
+    )
+
     admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
     admin_username = os.getenv("ADMIN_USERNAME", "").strip()
     admin_password = os.getenv("ADMIN_PASSWORD", "")
@@ -335,7 +365,7 @@ def seed_database(db: Any) -> None:
                     "name": "BookVerse Reader",
                     "email": demo_email,
                     "password_hash": password_hasher.hash(demo_password),
-                    "role": "customer",
+                    "role": "user",
                     "active": True,
                     "created_at": datetime.now(timezone.utc),
                 }
@@ -467,6 +497,8 @@ def signup(payload: SignupRequest):
         "name": payload.name.strip(),
         "email": str(payload.email).lower(),
         "password_hash": password_hasher.hash(payload.password),
+        "role": "user",
+        "active": True,
         "created_at": datetime.now(timezone.utc),
     }
     access_token = create_access_token(user["email"])
