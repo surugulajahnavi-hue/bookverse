@@ -59,14 +59,16 @@ h1, h2, h3, p { margin-top: 0; }
 .section-heading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .text-link { color: var(--brown); font-size: 12px; font-weight: 600; }
 .book-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
-.book-card { min-width: 0; }
+.book-card { min-width: 0; cursor: pointer; }
 .cover-wrap { position: relative; height: 265px; padding: 17px; display: grid; place-items: center; overflow: hidden; border-radius: 5px; background: var(--cover-bg, #e8e1d6); }
+.cover-preview { width: 100%; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: transparent; }
 .cover-wrap img { width: auto; height: 100%; max-width: 85%; object-fit: cover; box-shadow: 7px 8px 17px rgba(49,37,25,.22); transition: transform .25s; }
 .book-card:hover .cover-wrap img { transform: translateY(-3px) rotate(-1deg); }
 .cover-wrap .badge { position: absolute; top: 12px; left: 12px; z-index: 1; padding: 5px 8px; border-radius: 2px; background: #fffefa; color: var(--brown); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
 .book-info { padding-top: 12px; }
 .book-category { margin: 0 0 4px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .book-title { margin: 0 0 3px; overflow: hidden; font: 600 16px/1.35 var(--serif); text-overflow: ellipsis; white-space: nowrap; }
+.book-title-button { max-width: 100%; padding: 0; overflow: hidden; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .book-author { margin: 0 0 11px; color: var(--muted); font-size: 11px; }
 .book-bottom { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .price { font-size: 13px; font-weight: 700; }
@@ -148,6 +150,38 @@ h1, h2, h3, p { margin-top: 0; }
 .footer-bottom { margin-top: 30px; padding-top: 15px; border-top: 1px solid #51483d; color: #aaa092; font-size: 9px; }
 .toast { position: fixed; z-index: 50; right: 20px; bottom: 20px; padding: 13px 17px; border-radius: 4px; background: var(--brown-dark); color: white; box-shadow: 0 5px 20px #0002; font-size: 12px; animation: toast-in .2s ease-out; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.book-reader-modal { --bs-modal-bg: var(--paper); --bs-modal-border-color: var(--line); --bs-modal-border-radius: 8px; }
+.book-reader-modal .modal-header { align-items: flex-start; }
+.book-reader-modal .modal-header .eyebrow { margin-bottom: 5px; }
+.book-reader-modal .modal-title { font: 600 25px/1.25 var(--serif); }
+.reader-byline { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.book-reader-modal .modal-body { min-height: 270px; padding: 32px clamp(22px, 6vw, 70px); }
+.reader-page { max-width: 630px; margin: auto; }
+.reader-page-label { margin-bottom: 10px; color: var(--brown); font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.reader-page h3, .reader-paywall h3 { margin-bottom: 14px; font: 600 23px/1.3 var(--serif); }
+.reader-page > p:not(.reader-page-label):not(.reader-note), .reader-paywall > p:not(.eyebrow) { color: #514a41; font: 15px/1.95 var(--serif); }
+.reader-note { margin: 24px 0 0; color: var(--muted); font-size: 10px; }
+.book-reader-modal .modal-footer { justify-content: space-between; gap: 12px; }
+.reader-page-count { color: var(--muted); font-size: 10px; text-align: center; }
+.reader-nav-button { min-width: 112px; border-color: var(--line); color: var(--brown-dark); font-size: 11px; }
+.reader-nav-button:hover { border-color: var(--brown); color: var(--brown-dark); }
+.reader-paywall { max-width: 520px; margin: auto; text-align: center; }
+.reader-lock { width: 43px; height: 43px; margin: 0 auto 15px; display: grid; place-items: center; border-radius: 50%; background: var(--cream); color: var(--brown); font-size: 18px; }
+.reader-paywall .eyebrow { margin-bottom: 8px; }
+.reader-paywall small { margin-top: 11px; display: block; color: var(--muted); font-size: 10px; }
+.subscription-main { display: grid; align-items: center; }
+.subscription-card { width: min(570px, 100%); margin: 15px auto; padding: clamp(25px, 5vw, 46px); border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 14px 40px rgba(49,37,25,.06); }
+.subscription-card h1 { margin-bottom: 8px; font: 600 clamp(28px, 4vw, 38px)/1.2 var(--serif); }
+.subscription-intro { margin-bottom: 24px; color: var(--muted); font-size: 12px; }
+.subscription-price { margin-bottom: 20px; color: var(--brown-dark); }
+.subscription-price strong { font: 600 42px/1 var(--serif); }
+.subscription-price span { margin-left: 5px; color: var(--muted); font-size: 12px; }
+.subscription-benefits { margin: 0 0 21px; padding: 0; list-style: none; }
+.subscription-benefits li { margin: 11px 0; color: #514a41; font-size: 12px; }
+.subscription-benefits li::before { content: "✓"; margin-right: 10px; color: #47704a; font-weight: 700; }
+.subscription-disclaimer { margin: 0 0 18px; padding: 11px 12px; border-radius: 4px; background: var(--cream); color: #71695e; font-size: 10px; }
+.subscription-card > .button { width: 100%; }
+.subscription-back-link { margin-top: 15px; display: block; color: var(--brown); font-size: 11px; text-align: center; text-decoration: underline; }
 
 @media (max-width: 900px) {
   .header-inner { gap: 20px; }
@@ -180,6 +214,12 @@ h1, h2, h3, p { margin-top: 0; }
   .book-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; }
   .cover-wrap { height: clamp(190px, 60vw, 250px); padding: 13px; }
   .cover-wrap img { max-width: 88%; }
+  .book-reader-modal .modal-body { min-height: 250px; padding: 25px 20px; }
+  .book-reader-modal .modal-title { font-size: 21px; }
+  .reader-page h3, .reader-paywall h3 { font-size: 20px; }
+  .book-reader-modal .modal-footer { flex-wrap: wrap; }
+  .reader-page-count { order: -1; width: 100%; }
+  .reader-nav-button { min-width: 0; }
   .book-title { font-size: 14px; }
   .book-bottom .button { padding-inline: 9px; font-size: 10px; }
   .category-row { gap: 7px; }
